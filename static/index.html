@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MCP Studio</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+
+  /* Nav */
+  nav { display: flex; align-items: center; gap: 4px; padding: 10px 16px; background: #1a1d27; border-bottom: 1px solid #2d3148; }
+  nav .logo { font-weight: 700; font-size: 1rem; color: #7c6af7; margin-right: auto; }
+  nav button { background: none; border: none; color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all .15s; }
+  nav button.active, nav button:hover { background: #2d3148; color: #e2e8f0; }
+  nav button.active { color: #7c6af7; }
+
+  /* Status badge */
+  #status-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; background: #1e2235; color: #64748b; border: 1px solid #2d3148; }
+  #status-badge.ready { color: #4ade80; border-color: #4ade80; }
+
+  /* Pages */
+  .page { display: none; flex: 1; overflow: auto; padding: 24px; max-width: 860px; width: 100%; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: #1a1d27; border: 1px solid #2d3148; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card h3 { font-size: 0.875rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; }
+
+  /* Form elements */
+  label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; margin-top: 12px; }
+  label:first-child { margin-top: 0; }
+  input, select, textarea {
+    width: 100%; padding: 8px 12px; background: #0f1117; border: 1px solid #2d3148;
+    border-radius: 6px; color: #e2e8f0; font-size: 0.875rem; outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #7c6af7; }
+  textarea { resize: vertical; min-height: 90px; font-family: inherit; }
+  select option { background: #1a1d27; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all .15s; }
+  .btn-primary { background: #7c6af7; color: #fff; }
+  .btn-primary:hover { background: #6b58e8; }
+  .btn-secondary { background: #2d3148; color: #e2e8f0; }
+  .btn-secondary:hover { background: #363b56; }
+  .btn-danger { background: #3d1a1a; color: #f87171; border: 1px solid #7f1d1d; }
+  .btn-danger:hover { background: #4d2020; }
+  .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Provider selector */
+  .provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .provider-card { padding: 14px; border: 2px solid #2d3148; border-radius: 8px; cursor: pointer; text-align: center; transition: all .15s; }
+  .provider-card:hover { border-color: #7c6af7; }
+  .provider-card.selected { border-color: #7c6af7; background: #1e1b3a; }
+  .provider-card .pname { font-weight: 600; font-size: 0.95rem; }
+  .provider-card .pdesc { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
+  /* Alert */
+  .alert { padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; }
+  .alert-error { background: #3d1a1a; color: #f87171; border: 1px solid #7f1d1d; }
+  .alert-success { background: #0f2d1a; color: #4ade80; border: 1px solid #14532d; }
+
+  /* MCP server list */
+  .server-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #0f1117; border: 1px solid #2d3148; border-radius: 6px; margin-bottom: 8px; }
+  .server-item .sname { font-weight: 600; font-size: 0.875rem; flex: 1; }
+  .server-item .stype { font-size: 0.75rem; padding: 2px 8px; border-radius: 20px; background: #2d3148; color: #94a3b8; }
+
+  /* Tools list */
+  .tool-item { padding: 12px; background: #0f1117; border: 1px solid #2d3148; border-radius: 6px; margin-bottom: 8px; }
+  .tool-item .tname { font-weight: 600; font-size: 0.875rem; color: #7c6af7; }
+  .tool-item .tdesc { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+  .tool-item pre { margin-top: 8px; font-size: 0.75rem; background: #1a1d27; padding: 8px; border-radius: 4px; overflow-x: auto; color: #a5b4fc; }
+
+  /* Chat */
+  #chat-page { display: none; flex-direction: column; flex: 1; padding: 0; max-width: 100%; }
+  #chat-page.active { display: flex; }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 75%; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { background: #7c6af7; color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
+  .msg.assistant { background: #1a1d27; border: 1px solid #2d3148; align-self: flex-start; border-bottom-left-radius: 2px; }
+  .msg.tool-call { background: #1a2535; border: 1px solid #1e3a5f; color: #7dd3fc; font-size: 0.8rem; font-family: monospace; align-self: flex-start; max-width: 90%; }
+  .msg.tool-result { background: #1a2a1a; border: 1px solid #1e4d1e; color: #86efac; font-size: 0.8rem; font-family: monospace; align-self: flex-start; max-width: 90%; }
+  #chat-input-area { padding: 16px; background: #1a1d27; border-top: 1px solid #2d3148; display: flex; gap: 10px; }
+  #chat-input { flex: 1; padding: 10px 14px; background: #0f1117; border: 1px solid #2d3148; border-radius: 8px; color: #e2e8f0; font-size: 0.9rem; outline: none; resize: none; max-height: 120px; font-family: inherit; }
+  #chat-input:focus { border-color: #7c6af7; }
+  #send-btn { padding: 10px 18px; background: #7c6af7; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; }
+  #send-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .row { display: flex; gap: 10px; align-items: flex-end; }
+  .row > * { flex: 1; }
+  .row > .btn { flex: 0; white-space: nowrap; }
+  .mt { margin-top: 12px; }
+  .dimmed { color: #64748b; font-size: 0.8rem; }
+
+  /* Markdown rendering inside assistant bubbles */
+  .msg.assistant p { margin: 0 0 2px; }
+  .msg.assistant p:last-child { margin-bottom: 0; }
+  .msg.assistant h1,.msg.assistant h2,.msg.assistant h3 { margin: 8px 0 2px; font-size: 1rem; color: #c4b5fd; }
+  .msg.assistant ul,.msg.assistant ol { padding-left: 18px; margin: 2px 0 4px; }
+  .msg.assistant li { margin-bottom: 1px; }
+  .msg.assistant code { background: #0f1117; padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; color: #a5b4fc; font-family: monospace; }
+  .msg.assistant pre { background: #0f1117; padding: 10px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+  .msg.assistant pre code { background: none; padding: 0; color: #a5b4fc; }
+  .msg.assistant table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.82rem; }
+  .msg.assistant th,.msg.assistant td { border: 1px solid #2d3148; padding: 5px 10px; text-align: left; }
+  .msg.assistant th { background: #2d3148; color: #c4b5fd; }
+  .msg.assistant blockquote { border-left: 3px solid #7c6af7; padding-left: 10px; color: #94a3b8; margin: 6px 0; }
+  .msg.assistant strong { color: #e2e8f0; }
+  .msg.assistant a { color: #7c6af7; }
+
+  /* Thinking indicator */
+  .thinking { display: flex; align-items: center; gap: 6px; color: #64748b; font-size: 0.82rem; padding: 8px 12px; }
+  .thinking span { width: 6px; height: 6px; background: #64748b; border-radius: 50%; animation: bounce 1.2s infinite; }
+  .thinking span:nth-child(2) { animation-delay: .2s; }
+  .thinking span:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">⚡ MCP Studio</span>
+  <button class="active" onclick="showPage('setup')">Setup</button>
+  <button onclick="showPage('prompt')">Prompt</button>
+  <button onclick="showPage('mcp')">MCP Servers</button>
+  <button onclick="showPage('chat')">Chat</button>
+  <span id="status-badge">Not configured</span>
+</nav>
+
+<!-- SETUP PAGE -->
+<div id="setup-page" class="page active">
+
+  <!-- Current session info (shown when configured) -->
+  <div class="card" id="session-card" style="display:none;">
+    <h3>Current Session</h3>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div class="row" style="align-items:center;">
+        <span class="dimmed">Provider</span>
+        <span id="cur-provider" style="font-weight:600; text-transform:capitalize;"></span>
+      </div>
+      <div class="row" style="align-items:center;">
+        <span class="dimmed">Model</span>
+        <span id="cur-model" style="font-weight:600;"></span>
+      </div>
+      <div class="row" style="align-items:center;">
+        <span class="dimmed">API Key</span>
+        <span style="display:flex; align-items:center; gap:6px; flex:1;">
+          <code id="cur-apikey" style="background:#0f1117; padding:3px 8px; border-radius:4px; font-size:0.82rem; flex:1;"></code>
+          <button class="btn btn-secondary btn-sm" id="eye-btn" onclick="toggleKey()">👁</button>
+        </span>
+      </div>
+    </div>
+    <div class="mt">
+      <button class="btn btn-danger" onclick="clearSettings()">Clear Settings</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>LLM Provider</h3>
+    <div class="provider-grid">
+      <div class="provider-card" id="card-anthropic" onclick="selectProvider('anthropic')">
+        <div class="pname">Anthropic</div>
+        <div class="pdesc">Claude models</div>
+      </div>
+      <div class="provider-card" id="card-gemini" onclick="selectProvider('gemini')">
+        <div class="pname">Google Gemini</div>
+        <div class="pdesc">Gemini models</div>
+      </div>
+    </div>
+
+    <label>API Key</label>
+    <div class="row">
+      <input type="password" id="api-key-input" placeholder="Enter your API key..." />
+      <button class="btn btn-primary" onclick="verifyKey()">Verify & Load Models</button>
+    </div>
+    <div id="setup-alert" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card" id="model-card" style="display:none;">
+    <h3>Select Model</h3>
+    <label>Available Models</label>
+    <select id="model-select"></select>
+    <div class="mt">
+      <button class="btn btn-primary" onclick="saveModel()">Use This Model</button>
+    </div>
+    <div id="model-alert" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- PROMPT PAGE -->
+<div id="prompt-page" class="page">
+  <div class="card">
+    <h3>System Prompt</h3>
+    <textarea id="system-prompt" rows="8"></textarea>
+    <div class="mt">
+      <button class="btn btn-primary" onclick="savePrompt()">Save Prompt</button>
+    </div>
+    <div id="prompt-alert" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- MCP SERVERS PAGE -->
+<div id="mcp-page" class="page">
+  <div class="card">
+    <h3>Add MCP Server</h3>
+    <label>Name</label>
+    <input type="text" id="srv-name" placeholder="my-server" />
+
+    <label>Type</label>
+    <select id="srv-type" onchange="toggleSrvType()">
+      <option value="stdio">stdio</option>
+      <option value="http">HTTP</option>
+    </select>
+
+    <div id="stdio-fields">
+      <label>Command</label>
+      <input type="text" id="srv-command" placeholder="npx or python path..." />
+      <label>Args (space-separated)</label>
+      <input type="text" id="srv-args" placeholder="-y @modelcontextprotocol/server-filesystem /tmp" />
+      <label>Env vars (KEY=VALUE, comma-separated)</label>
+      <input type="text" id="srv-env" placeholder="FOO=bar,BAZ=qux" />
+    </div>
+
+    <div id="http-fields" style="display:none;">
+      <label>URL</label>
+      <input type="text" id="srv-url" placeholder="http://localhost:8080/mcp" />
+    </div>
+
+    <div class="mt">
+      <button class="btn btn-primary" onclick="addServer()">Add Server</button>
+    </div>
+    <div id="srv-alert" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>Configured Servers</h3>
+    <div id="server-list"><span class="dimmed">No servers added yet.</span></div>
+  </div>
+
+  <div class="card" id="tools-card" style="display:none;">
+    <h3>Tools — <span id="tools-server-name"></span></h3>
+    <div id="tools-list"></div>
+  </div>
+</div>
+
+<!-- CHAT PAGE -->
+<div id="chat-page" class="page">
+  <div id="chat-toolbar" style="padding:10px 20px; background:#1a1d27; border-bottom:1px solid #2d3148; display:flex; justify-content:flex-end;">
+    <button class="btn btn-danger btn-sm" onclick="clearChat()">Clear Chat</button>
+  </div>
+  <div id="chat-messages"></div>
+  <div id="chat-input-area">
+    <textarea id="chat-input" placeholder="Type a message... (Enter to send, Shift+Enter for newline)" rows="1"></textarea>
+    <button id="send-btn" onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+let selectedProvider = null;
+let state = {};
+
+marked.use({ breaks: true, gfm: true });
+const renderMd = text => marked.parse(text.trim().replace(/\n{3,}/g, '\n\n'));
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const res = await fetch('/api/settings');
+  state = await res.json();
+  if (state.provider) selectProvider(state.provider, false);
+  if (state.system_prompt) document.getElementById('system-prompt').value = state.system_prompt;
+  if (state.provider && state.api_key) {
+    document.getElementById('session-card').style.display = 'block';
+    document.getElementById('cur-provider').textContent = state.provider;
+    document.getElementById('cur-model').textContent = state.model || '—';
+    document.getElementById('cur-apikey').textContent = state.api_key_masked;
+    updateStatusBadge(true);
+  }
+  loadServers();
+  loadChatHistory();
+}
+
+let keyVisible = false;
+function toggleKey() {
+  keyVisible = !keyVisible;
+  document.getElementById('cur-apikey').textContent = keyVisible ? state.api_key : state.api_key_masked;
+  document.getElementById('eye-btn').textContent = keyVisible ? '🙈' : '👁';
+}
+
+async function clearSettings() {
+  if (!confirm('Clear all settings? You will lose your provider, API key, model, and MCP server configuration.')) return;
+  await fetch('/api/settings/reset', { method: 'POST' });
+  location.reload();
+}
+
+function updateStatusBadge(ready) {
+  const b = document.getElementById('status-badge');
+  if (ready && state.model) {
+    b.textContent = `${state.provider} / ${state.model}`;
+    b.className = 'ready';
+  } else {
+    b.textContent = 'Not configured';
+    b.className = '';
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(name + '-page').classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+function selectProvider(name, click = true) {
+  selectedProvider = name;
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-' + name).classList.add('selected');
+  if (click) document.getElementById('model-card').style.display = 'none';
+}
+
+async function verifyKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!selectedProvider) return showAlert('setup-alert', 'Select a provider first.', 'error');
+  if (!key) return showAlert('setup-alert', 'Enter an API key.', 'error');
+
+  showAlert('setup-alert', 'Verifying...', '');
+  const res = await fetch('/api/settings/provider', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: selectedProvider, api_key: key }),
+  });
+  const data = await res.json();
+  if (!res.ok) return showAlert('setup-alert', data.detail, 'error');
+
+  // Store key in state for session card
+  state.api_key = key;
+  state.api_key_masked = '*'.repeat(8) + key.slice(-4);
+  state.provider = selectedProvider;
+
+  showAlert('setup-alert', `✓ Connected. ${data.models.length} models available.`, 'success');
+  const sel = document.getElementById('model-select');
+  sel.innerHTML = data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+  if (state.model) sel.value = state.model;
+  document.getElementById('model-card').style.display = 'block';
+}
+
+async function saveModel() {
+  const model = document.getElementById('model-select').value;
+  const res = await fetch('/api/settings/model', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  });
+  if (res.ok) {
+    state.model = model;
+    updateStatusBadge(true);
+    showAlert('model-alert', `✓ Model set to ${model}`, 'success');
+    // Show / refresh session card
+    document.getElementById('cur-provider').textContent = state.provider;
+    document.getElementById('cur-model').textContent = model;
+    document.getElementById('cur-apikey').textContent = state.api_key_masked;
+    keyVisible = false;
+    document.getElementById('eye-btn').textContent = '👁';
+    document.getElementById('session-card').style.display = 'block';
+  }
+}
+
+// ── Prompt ────────────────────────────────────────────────────────────────────
+async function savePrompt() {
+  const system_prompt = document.getElementById('system-prompt').value;
+  const res = await fetch('/api/settings/prompt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system_prompt }),
+  });
+  showAlert('prompt-alert', res.ok ? '✓ Saved' : 'Error saving', res.ok ? 'success' : 'error');
+}
+
+// ── MCP Servers ───────────────────────────────────────────────────────────────
+function toggleSrvType() {
+  const t = document.getElementById('srv-type').value;
+  document.getElementById('stdio-fields').style.display = t === 'stdio' ? '' : 'none';
+  document.getElementById('http-fields').style.display = t === 'http' ? '' : 'none';
+}
+
+async function addServer() {
+  const name = document.getElementById('srv-name').value.trim();
+  const type = document.getElementById('srv-type').value;
+  if (!name) return showAlert('srv-alert', 'Name is required.', 'error');
+
+  const body = { name, type, command: '', args: [], env: {}, url: '' };
+  if (type === 'stdio') {
+    body.command = document.getElementById('srv-command').value.trim();
+    body.args = document.getElementById('srv-args').value.trim().split(/\s+/).filter(Boolean);
+    const envStr = document.getElementById('srv-env').value.trim();
+    if (envStr) envStr.split(',').forEach(pair => {
+      const [k, v] = pair.split('=');
+      if (k) body.env[k.trim()] = (v || '').trim();
+    });
+  } else {
+    body.url = document.getElementById('srv-url').value.trim();
+  }
+
+  const res = await fetch('/api/mcp/servers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (res.ok) { showAlert('srv-alert', '✓ Server added', 'success'); loadServers(); }
+  else showAlert('srv-alert', (await res.json()).detail, 'error');
+}
+
+async function loadServers() {
+  const servers = await (await fetch('/api/mcp/servers')).json();
+  const el = document.getElementById('server-list');
+  if (!servers.length) { el.innerHTML = '<span class="dimmed">No servers added yet.</span>'; return; }
+  el.innerHTML = servers.map(s => `
+    <div class="server-item">
+      <span class="sname">${s.name}</span>
+      <span class="stype">${s.type}</span>
+      <button class="btn btn-secondary btn-sm" onclick="testServer('${s.name}')">🔍 Test</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteServer('${s.name}')">✕</button>
+    </div>
+  `).join('');
+}
+
+async function deleteServer(name) {
+  await fetch(`/api/mcp/servers/${name}`, { method: 'DELETE' });
+  loadServers();
+  document.getElementById('tools-card').style.display = 'none';
+}
+
+async function testServer(name) {
+  const card = document.getElementById('tools-card');
+  const list = document.getElementById('tools-list');
+  document.getElementById('tools-server-name').textContent = name;
+  list.innerHTML = '<span class="dimmed">Connecting...</span>';
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth' });
+
+  const res = await fetch(`/api/mcp/test/${name}`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) { list.innerHTML = `<div class="alert alert-error">${data.detail}</div>`; return; }
+
+  list.innerHTML = data.tools.map(t => `
+    <div class="tool-item">
+      <div class="tname">${t.name}</div>
+      <div class="tdesc">${t.description || '<em>No description</em>'}</div>
+      <pre>${JSON.stringify(t.inputSchema, null, 2)}</pre>
+    </div>
+  `).join('') || '<span class="dimmed">No tools found.</span>';
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+async function loadChatHistory() {
+  const res = await fetch('/api/chat/history');
+  const history = await res.json();
+  history.forEach(m => appendMsg(m.role, m.content));
+}
+
+async function clearChat() {
+  await fetch('/api/chat/history', { method: 'DELETE' });
+  document.getElementById('chat-messages').innerHTML = '';
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  appendMsg('user', text);
+
+  const sendBtn = document.getElementById('send-btn');
+  sendBtn.disabled = true;
+
+  const thinkingEl = document.createElement('div');
+  thinkingEl.className = 'msg assistant thinking';
+  thinkingEl.innerHTML = '<span></span><span></span><span></span> Thinking...';
+  document.getElementById('chat-messages').appendChild(thinkingEl);
+  scrollChat();
+
+  let assistantEl = null;
+  let assistantText = '';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+
+    if (!res.ok) {
+      thinkingEl.remove();
+      appendMsg('assistant').textContent = '⚠ ' + (await res.json()).detail;
+      sendBtn.disabled = false;
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6);
+        if (raw === '[DONE]') break;
+        const chunk = JSON.parse(raw);
+        if (chunk.type === 'text') {
+          if (thinkingEl.parentNode) { thinkingEl.remove(); assistantEl = appendMsg('assistant'); }
+          assistantText += chunk.content;
+          assistantEl.innerHTML = renderMd(assistantText);
+        } else if (chunk.type === 'tool_result') {
+          assistantText = '';
+          assistantEl = null;
+        }
+        scrollChat();
+      }
+    }
+  } catch (e) {
+    if (thinkingEl.parentNode) thinkingEl.remove();
+    appendMsg('assistant').textContent = '⚠ ' + e.message;
+  }
+  sendBtn.disabled = false;
+  scrollChat();
+}
+
+function appendMsg(role, text = '') {
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  if (text) {
+    if (role === 'assistant') el.innerHTML = renderMd(text);
+    else el.textContent = text;
+  }
+  document.getElementById('chat-messages').appendChild(el);
+  scrollChat();
+  return el;
+}
+
+function scrollChat() {
+  const msgs = document.getElementById('chat-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  el.className = type ? `alert alert-${type}` : '';
+  el.textContent = msg;
+}
+
+init();
+</script>
+</body>
+</html>
